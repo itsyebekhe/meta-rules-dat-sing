@@ -1,0 +1,60 @@
+name: Fetch and Update Geo Rules
+
+# Controls when the action will run.
+on:
+  # 1. Allows you to run this workflow manually from the Actions tab.
+  workflow_dispatch:
+
+  # 2. Runs on a schedule (e.g., once a day at 5:00 UTC).
+  #    You can use https://crontab.guru/ to customize the schedule.
+  schedule:
+    - cron: '0 5 * * *'
+
+# Sets permissions for the GITHUB_TOKEN to allow the workflow to commit to the repository.
+permissions:
+  contents: write
+
+jobs:
+  # This workflow contains a single job called "fetch-and-commit"
+  fetch-and-commit:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out your repository code so the workflow can access it.
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up PHP. The 'ubuntu-latest' runner has it, but this ensures a specific version and adds it to the PATH.
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2' # You can specify a PHP version
+
+      # Step 3: Run the PHP script to download the files.
+      - name: Fetch rules files
+        run: php download_rules.php
+
+      # Step 4: Check for changes, and if they exist, commit and push them.
+      - name: Commit and push changes
+        run: |
+          # Configure git with the bot's identity
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Add all new and modified files to the staging area
+          # Using 'git add -A' is a safe way to stage all changes.
+          git add -A
+          
+          # Check if there are any staged changes. If not, exit gracefully.
+          # `git diff --staged --quiet` returns a non-zero exit code if there are changes.
+          if git diff --staged --quiet; then
+            echo "No changes to commit. Workflow finished."
+            exit 0
+          fi
+          
+          # Create a commit with a descriptive message
+          git commit -m "Automated: Update geo rules files"
+          
+          # Push the changes back to the repository
+          git push
